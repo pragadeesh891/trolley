@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shopping Voice Assistant</title>
+</head>
+<body>
+    <h1>Shopping Voice Assistant</h1>
+    <p>Say an item name (milk, bread, rice, fruits) and then say "next" for each step.</p>
+    <button id="start-btn">Start Assistant</button>
+
+    <script>
+        // Navigation steps
+        const storeMap = {
+            milk: [
+                "Start at the entrance",
+                "Go straight for 10 meters",
+                "Turn left at the second aisle",
+                "Milk will be on your right"
+            ],
+            bread: [
+                "Start at the entrance",
+                "Go straight for 5 meters",
+                "Turn right at the first aisle",
+                "Bread will be on your left"
+            ],
+            rice: [
+                "Start at the entrance",
+                "Walk to the last aisle",
+                "Turn left",
+                "Rice section will be in the middle shelves"
+            ],
+            fruits: [
+                "Start at the entrance",
+                "Go straight",
+                "Fruits section is right in front of you near the billing area"
+            ]
+        };
+
+        let currentItem = "";
+        let currentStep = 0;
+
+        // Initialize speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        // Function to speak text
+        function speak(text) {
+            const synth = window.speechSynthesis;
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.rate = 1; // speaking speed
+            synth.speak(utter);
+            console.log("AI:", text);
+        }
+
+        // Handle speech recognition results
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            console.log("You said:", transcript);
+
+            if (!currentItem) {
+                if (storeMap[transcript]) {
+                    currentItem = transcript;
+                    currentStep = 0;
+                    speak(`Okay, I will guide you to ${currentItem}. Say "next" to hear each step.`);
+                } else {
+                    speak("Sorry, I don't have navigation for that item.");
+                }
+            } else {
+                if (transcript.includes("next")) {
+                    if (currentStep < storeMap[currentItem].length) {
+                        speak(storeMap[currentItem][currentStep]);
+                        currentStep++;
+                    } else {
+                        speak(`You have reached the ${currentItem} section. Happy shopping!`);
+                        currentItem = "";
+                    }
+                } else if (transcript.includes("stop")) {
+                    speak("Navigation stopped. Happy shopping!");
+                    currentItem = "";
+                } else {
+                    speak("Say 'next' for the next step or 'stop' to quit.");
+                }
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.error(eventpy.error);
+            speak("Sorry, I could not understand. Please try again.");
+        };
+
+        // Start recognition
+        document.getElementById("start-btn").addEventListener("click", () => {
+            speak("Hello! I am your shopping assistant. What item do you want to find?");
+            recognition.start();
+        });
+
+        // Restart recognition after it ends (continuous listening)
+        recognition.onend = function() {
+            recognition.start();
+        };
+    </script>
+</body>
+</html>

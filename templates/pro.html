@@ -1,0 +1,105 @@
+/* ---------------------------
+   Voice Assistant Navigation
+   --------------------------- */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const navRecognition = new SpeechRecognition();
+navRecognition.lang = 'en-IN';
+navRecognition.interimResults = false;
+
+let currentNavItem = "";
+let currentNavStep = 0;
+
+el('start-voice-btn').onclick = () => {
+  if (!state.list.length) { 
+    toast("Add items to your list first."); 
+    return; 
+  }
+  speak("Hello! Say an item name from your list and then say 'next' to hear each step.");
+  navRecognition.start();
+};
+
+navRecognition.onresult = function(event) {
+  const transcript = event.results[0][0].transcript.toLowerCase();
+  console.log("VoiceAssistant heard:", transcript);
+
+  if (!currentNavItem) {
+    // Picking an item
+    const match = state.list.find(i => transcript.includes(i.toLowerCase()));
+    if (match) {
+      currentNavItem = match;
+      currentNavStep = 0;
+
+      // Get path
+      const goal = product_location[currentNavItem.toLowerCase()] || product_location["entrance"];
+      const path = bfs(product_location["entrance"], goal);
+
+      speak(`Okay, guiding you to ${currentNavItem}. Say 'next' for each step.`);
+      currentNavPath = path; // store for step-by-step
+    } else {
+      speak("Item not found in your list. Try again.");
+    }
+  } else {
+    // Step navigation
+    if (transcript.includes("next")) {
+      if (currentNavStep < currentNavPath.length) {
+        speak(`Step ${currentNavStep+1}: Move ${currentNavPath[currentNavStep]}`);
+        currentNavStep++;
+      } else {
+        speak(`You have reached the ${currentNavItem} section. Happy shopping!`);
+        currentNavItem = "";
+        currentNavStep = 0;
+      }
+    } else if (transcript.includes("stop")) {
+      speak("Navigation stopped.");
+      currentNavItem = "";
+      currentNavStep = 0;
+    } else {
+      speak("Say 'next' for the next step or 'stop' to quit.");
+    }
+  }
+};
+
+navRecognition.onerror = (e) => {
+  console.error(e);
+  speak("Voice recognition error, please try again.");
+};
+
+navRecognition.onend = () => {
+  // Keeps listening
+  if (currentNavItem) navRecognition.start();
+};
+
+/* ---------------------------
+   AI Assistant using /api/ask
+   --------------------------- */
+async function askAI(query) {
+  try {
+    pushFeed('aiFeed', '🗣 You: ' + query);
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ query, cart: state.list })
+    });
+    const data = await res.json();
+    const answer = data.response || "Sorry, I could not find an answer.";
+    speak(answer);
+    pushFeed('aiFeed', '🤖 ' + answer);
+  } catch (e) {
+    console.error(e);
+    speak("Sorry, AI server connection failed.");
+  }
+}
+
+// Hook voice button for AI queries
+el('start-btn').onclick = () => {
+  speak("Hello! I am your AI shopping assistant. Ask me about your items or aisles.");
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'en-IN';
+  recognition.interimResults = false;
+  recognition.onresult = event => {
+    const transcript = event.results[0][0].transcript;
+    askAI(transcript);
+  };
+  recognition.onerror = e => { console.error(e); toast('Speech error'); };
+  recognition.start();
+};

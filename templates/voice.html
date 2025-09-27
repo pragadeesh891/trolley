@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Smart Shopping Voice Assistant</title>
+<style>
+  :root{
+    --bg: #0b1020; --panel: #12172a; --panel-2:#0f1426;
+    --text: #eef2ff; --muted: #9aa3b2;
+    --brand: #6e9bff; --brand-2:#7af7d5;
+    --ok:#47d18c; --bad:#ff6470; --warn:#ffd466;
+    --radius: 18px; --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background: radial-gradient(1200px 600px at 80% -10%, rgba(110,155,255,.25), transparent 60%),
+                        radial-gradient(800px 400px at -10% 10%, rgba(122,247,213,.15), transparent 50%),
+                        var(--bg); color:var(--text); display:flex; justify-content:center; align-items:flex-start; padding:40px;}
+  .card{background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+        border:1px solid rgba(255,255,255,.06); border-radius: var(--radius);
+        padding:32px; width:500px; text-align:center; box-shadow:var(--shadow);}
+  .title{font-size:24px; font-weight:800; margin-bottom:12px;}
+  .subtitle{font-size:14px; color:var(--muted); margin-bottom:20px;}
+  #start-btn{appearance:none; border:0; padding:12px 24px; border-radius:14px; font-weight:600;
+             cursor:pointer; transition:.2s transform, .2s filter, .2s background;
+             background:linear-gradient(135deg, var(--brand), var(--brand-2)); color:#0b1020;
+             font-size:16px;}
+  #start-btn:hover{transform: translateY(-1px)}
+  #status{margin-top:20px; font-weight:700; color:var(--ok);}
+  #progress{margin-top:10px; font-size:13px; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2 class="title">Smart Shopping Voice Assistant</h2>
+  <p class="subtitle">
+    Say an item name (milk, bread, chocolate, juice, bakery, maggie, shampoo, ice cream, fruits).  
+    Then say <b>"ok"</b> for each step, <b>"repeat"</b> to hear the step again, or <b>"stop"</b> to finish.
+  </p>
+
+  <button id="start-btn">🎤 Start Assistant</button>
+  <div id="status">Idle</div>
+  <div id="progress"></div>
+</div>
+
+<script>
+const storeMap = {
+  milk:["Start at the entrance.","Go left to the first section.","Milk is in the refrigerated section."],
+  bread:["Start at the entrance.","Walk straight to the center.","Bread shelves are right in front."],
+  chocolate:["Start at the entrance.","Move right from center.","Chocolate shelves on your right."],
+  juice:["Start at entrance.","Go left then middle row.","Juices are refrigerated on left."],
+  bakery:["Start at entrance.","Walk straight to center.","Bakery display cases in front."],
+  maggie:["Start at entrance.","Go straight then right.","Maggie shelves on right."],
+  shampoo:["Start at entrance.","Go left to bottom left.","Shampoo shelves in front."],
+  "ice cream":["Start at entrance.","Walk to bottom center.","Ice cream is in freezer in front."],
+  fruits:["Start at entrance.","Move to bottom right.","Fruits in display bins in front."]
+};
+
+const availableItems = Object.keys(storeMap);
+const greetings = ["Hello shopper! Ready to find your items?","Hi there! Let's explore the store!","Hey friend! I can guide you to your items!"];
+const positiveNotes = ["You're doing great!","Keep going, almost there!","Excellent pace!","Shopping like a pro!","Thank you, visit again!"];
+
+let currentItem = "";
+let currentStep = 0;
+let shoppingQueue = [];
+let awaitingConfirmation = false;
+
+function speak(text){
+  const synth = window.speechSynthesis;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.voice = synth.getVoices().find(v=>/female|woman|samantha/i.test(v.name)) || synth.getVoices()[0];
+  utter.rate = 1.1; utter.pitch = 1.1;
+  synth.speak(utter);
+  console.log("AI:", text);
+}
+
+function fuzzyMatch(item){
+  item = item.toLowerCase();
+  let closest = availableItems[0], minDist = Infinity;
+  for(let i of availableItems){
+    let dist = levenshtein(i,item);
+    if(dist<minDist){minDist=dist; closest=i; }
+  }
+  return minDist<=2 ? closest : null;
+}
+
+function levenshtein(a,b){
+  const dp = Array.from({length:a.length+1},()=>Array(b.length+1).fill(0));
+  for(let i=0;i<=a.length;i++)dp[i][0]=i;
+  for(let j=0;j<=b.length;j++)dp[0][j]=j;
+  for(let i=1;i<=a.length;i++){
+    for(let j=1;j<=b.length;j++){
+      dp[i][j] = a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j-1],dp[i][j-1],dp[i-1][j]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang = "en-US"; recognition.interimResults = false;
+
+recognition.onstart = ()=>document.getElementById("status").textContent = "🎤 Listening...";
+recognition.onend = ()=>{document.getElementById("status").textContent = "Waiting for command..."; recognition.start();};
+recognition.onerror = e=>{console.error(e.error); speak("Oops, I didn't catch that. Try again.");};
+
+recognition.onresult = function(event){
+  let transcript = event.results[0][0].transcript.toLowerCase();
+  console.log("You said:", transcript);
+
+  if(awaitingConfirmation){
+    if(transcript.includes("yes")){
+      awaitingConfirmation=false;
+      shoppingQueue.push(currentItem);
+      currentStep=0;
+      speak(`Great! We'll find ${currentItem} now. Say "ok" for the first step.`);
+    } else if(transcript.includes("no")){
+      awaitingConfirmation=false;
+      currentItem="";
+      speak("Okay, tell me the correct item.");
+    } else { speak("Say yes to confirm or no to change."); }
+    return;
+  }
+
+  if(!currentItem){
+    let matched = storeMap[transcript]?transcript:fuzzyMatch(transcript);
+    if(matched){
+      currentItem = matched;
+      awaitingConfirmation=true;
+      speak(`Did I hear ${currentItem}? Say yes or no.`);
+    } else {
+      speak(`Sorry, I don't see that item. Choose from: ${availableItems.join(", ")}.`);
+    }
+  } else {
+    if(transcript.includes("ok")){
+      if(currentStep<storeMap[currentItem].length){
+        let stepText = storeMap[currentItem][currentStep];
+        if(currentStep>0 && Math.random()<0.5) stepText += " "+positiveNotes[Math.floor(Math.random()*positiveNotes.length)];
+        speak(`Step ${currentStep+1}: ${stepText}`);
+        document.getElementById("progress").textContent=`${currentItem}: Step ${currentStep+1}/${storeMap[currentItem].length}`;
+        currentStep++;
+      } else {
+        speak(`You reached ${currentItem} section. Find another item?`);
+        currentItem="";
+        document.getElementById("progress").textContent="";
+      }
+    } else if(transcript.includes("repeat")){
+      if(currentStep>0) speak(`Repeating step ${currentStep}: ${storeMap[currentItem][currentStep-1]}`);
+      else speak("No steps yet, say 'ok' to start.");
+    } else if(transcript.includes("stop")){
+      speak("Navigation stopped. Enjoy your shopping!");
+      currentItem=""; currentStep=0; shoppingQueue=[];
+      document.getElementById("progress").textContent="";
+    } else {
+      speak("Say 'ok' for next step, 'repeat' to hear again, or 'stop' to finish.");
+    }
+  }
+};
+
+document.getElementById("start-btn").addEventListener("click",()=>{
+  speak(greetings[Math.floor(Math.random()*greetings.length)]);
+  recognition.start();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SmartCart Barcode Scanner Demo</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0b1020; color: #fff; }
+    #reader { width: 300px; margin: 20px auto; }
+    .item { background:#1a2140; padding:10px; margin:5px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <h1>📷 Scan Barcode</h1>
+  <button id="btnScan">Start Scan</button>
+  <div id="reader" style="display:none;"></div>
+  <h2>🛒 Cart</h2>
+  <div id="cart"></div>
+  <p>Total: <span id="total">₹0.00</span></p>
+
+<script>
+const state = { cart: [] };
+const fmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+const $cart = document.getElementById("cart");
+const $total = document.getElementById("total");
+
+const products = {
+  "8901001": { name: "Amul Milk 1L", price: 60 },
+  "8901002": { name: "Mother Dairy Milk 1L", price: 58 },
+  "8901003": { name: "Nestlé Milk 1L", price: 62 },
+  "8901004": { name: "Heritage Milk 1L", price: 55 },
+  "8901005": { name: "Aavin Milk 1L", price: 54 },
+  "8901006": { name: "Tropicana Orange Juice", price: 95 },
+  "8901007": { name: "Maggi 2-Minute Noodles", price: 14 },
+  "8901008": { name: "Lays Chips", price: 20 }
+};
+
+// --- Lock to prevent multiple adds ---
+let lastScanned = null;
+let lock = false;
+
+function renderCart() {
+  $cart.innerHTML = "";
+  let sum = 0;
+  state.cart.forEach(item => {
+    sum += item.price * item.qty;
+    $cart.innerHTML += `<div class="item">${item.name} × ${item.qty} = ${fmt.format(item.price*item.qty)}</div>`;
+  });
+  $total.textContent = fmt.format(sum);
+}
+
+document.getElementById("btnScan").onclick = () => {
+  document.getElementById("reader").style.display = "block";
+  const html5QrCode = new Html5Qrcode("reader");
+
+  html5QrCode.start(
+    { facingMode: "environment" }, 
+    { fps: 10, qrbox: 250 },
+    (decodedText) => {
+      if (lock && lastScanned === decodedText) return; // ignore repeats
+      lastScanned = decodedText;
+      lock = true;
+      setTimeout(() => { lock = false; }, 2000); // unlock after 2s
+
+      if (products[decodedText]) {
+        let existing = state.cart.find(p => p.name === products[decodedText].name);
+        if (existing) existing.qty++;
+        else state.cart.push({ ...products[decodedText], qty: 1 });
+        renderCart();
+      } else {
+        alert("Unknown barcode: " + decodedText);
+      }
+    },
+    (err) => { /* keep scanning */ }
+  ).catch(err => {
+    alert("Camera start error: " + err);
+  });
+};
+</script>
+
+</body>
+</html>
