@@ -33,7 +33,7 @@
       color:var(--text);
     }
     a{color:var(--brand)}
-    .container{max-width:1100px; margin:0 auto; padding:24px}
+    .container{max-width:1200px; margin:0 auto; padding:24px}
     header{
       position:sticky; top:0; z-index:10; backdrop-filter: blur(8px);
       background: rgba(11,16,32,.6); border-bottom:1px solid rgba(255,255,255,.06);
@@ -50,7 +50,7 @@
     .grid{display:grid; gap:16px}
     @media(min-width:900px){
       .grid.cols-3{grid-template-columns:1.2fr 1fr 1fr}
-      .grid.cols-2{grid-template-columns:1.1fr 1fr}
+      .grid.cols-2{grid-template-columns:1fr 1.3fr}
     }
     .card{
       background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
@@ -80,7 +80,7 @@
     .title{font-weight:700; margin:0 0 10px}
     .subtitle{color:var(--muted); margin:4px 0 14px}
 
-    .items{display:flex; flex-direction:column; gap:10px; max-height:340px; overflow:auto}
+    .items{display:flex; gap:10px; flex-direction:column; max-height:340px; overflow:auto}
     .item{display:grid; grid-template-columns:42px 1fr auto; gap:10px; align-items:center; padding:10px; border-radius:12px; background:#0f1426; border:1px solid rgba(255,255,255,.06)}
     .item .img{width:42px; height:42px; border-radius:10px; background:linear-gradient(135deg,#263162,#1b234a)}
     .price{font-weight:700}
@@ -104,6 +104,38 @@
     @keyframes slideup{from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1}}
 
     .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0}
+    
+    /* Language selector */
+    .language-selector {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 12px;
+      background: #0f1426;
+      border: 1px solid rgba(255,255,255,.06);
+      color: var(--text);
+      width: 100%;
+    }
+    
+    /* Assistant feed improvements */
+    .ai-feed-item {
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(110, 155, 255, 0.1);
+      border: 1px solid rgba(110, 155, 255, 0.2);
+      margin-bottom: 8px;
+      word-wrap: break-word;
+    }
+    
+    .ai-feed-item.user {
+      background: rgba(122, 247, 213, 0.1);
+      border: 1px solid rgba(122, 247, 213, 0.2);
+    }
+    
+    .ai-feed-item.processing {
+      background: rgba(255, 212, 102, 0.1);
+      border: 1px solid rgba(255, 212, 102, 0.2);
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -171,6 +203,21 @@
     <div class="card">
       <h2 class="title">2) Plan your List</h2>
       <p class="subtitle">Add items and SmartCart will map the fastest path.</p>
+      
+      <!-- Language selector -->
+      <select id="languageSelector" class="language-selector">
+        <option value="en">English</option>
+        <option value="hi">Hindi (हिन्दी)</option>
+        <option value="ta">Tamil (தமிழ்)</option>
+        <option value="te">Telugu (తెలుగు)</option>
+        <option value="ml">Malayalam (മലയാളം)</option>
+        <option value="kn">Kannada (ಕನ್ನಡ)</option>
+        <option value="bn">Bengali (বাংলা)</option>
+        <option value="mr">Marathi (मराठी)</option>
+        <option value="gu">Gujarati (ગુજરાતી)</option>
+        <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
+      </select>
+      
       <div class="row">
         <input id="addItem" type="text" placeholder="Add item (e.g., Whole wheat bread)" />
         <button class="btn" id="btnAdd">Add</button>
@@ -200,13 +247,13 @@
     <div class="card">
       <h2 class="title">Assistant</h2>
       <p class="subtitle">Ask SmartCart for alternatives, nutrition info, or offers.</p>
-      <div class="items" id="aiFeed"></div>
-      <div class="row">
-        <input id="ask" type="text" placeholder="Ask e.g., lactose‑free milk under ₹70" />
-        <button class="btn" id="btnAsk">Ask</button>
+      <div class="items" id="aiFeed" style="min-height: 200px; max-height: 300px; padding: 10px; background: rgba(15, 20, 38, 0.7); border-radius: 12px;"></div>
+      <div class="row" style="margin-top: 15px;">
+        <input id="ask" type="text" placeholder="Ask e.g., Where is the milk? or How much does bread cost?" style="padding: 14px; font-size: 16px;" />
+        <button class="btn" id="btnAsk" style="padding: 14px 20px; font-size: 16px;">Ask</button>
       </div>
-      <div class="row" style="margin-top:6px;">
-        <button class="btn" id="btnSpeak">🎤 Speak</button>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="btnSpeak" style="flex: 1; padding: 14px; font-size: 16px;">🎤 Speak</button>
       </div>
     </div>
   </section>
@@ -225,13 +272,31 @@ const state = {
   trolleyId: null,
   battery: 100,
   cart: [],
-  list: []
+  list: [],
+  language: "en" // Default language
 };
 
 const el = id => document.getElementById(id);
 const $cart = el('cartItems');
 const $total = el('total');
 const fmt = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+
+// Set current year in footer
+document.getElementById('year').textContent = new Date().getFullYear();
+
+// Language mapping for speech recognition
+const languageCodes = {
+  "en": "en-US",
+  "hi": "hi-IN",
+  "ta": "ta-IN",
+  "te": "te-IN",
+  "ml": "ml-IN",
+  "kn": "kn-IN",
+  "bn": "bn-IN",
+  "mr": "mr-IN",
+  "gu": "gu-IN",
+  "pa": "pa-IN"
+};
 
 function toast(msg) {
   const t = el('toast');
@@ -297,7 +362,16 @@ window.updateQty = (idx, d) => {
 function pushFeed(id, text) {
   const wrap = el(id);
   const div = document.createElement('div');
-  div.className = 'item';
+  
+  // Apply different styles based on the content
+  if (text.includes('🗣 You:')) {
+    div.className = 'ai-feed-item user';
+  } else if (text.includes('Processing your request')) {
+    div.className = 'ai-feed-item processing';
+  } else {
+    div.className = 'ai-feed-item';
+  }
+  
   div.textContent = text;
   wrap.prepend(div);
 }
@@ -344,7 +418,29 @@ el('btnAdd').onclick = () => {
 el('btnAsk').onclick = () => {
   const v = el('ask').value.trim();
   if (!v) return;
-  pushFeed('aiFeed', '🤖 Suggestion: Try Store Brand to save 10% on ' + v);
+  
+  // Send request with language preference
+  fetch('/api/ask', {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json; charset=utf-8'
+    },
+    body: JSON.stringify({ 
+      query: v,
+      language: state.language
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    pushFeed('aiFeed', '🤖 ' + data.response);
+    speak(data.response);
+  })
+  .catch(err => {
+    const response = '🤖 Suggestion: Try Store Brand to save 10% on ' + v;
+    pushFeed('aiFeed', response);
+    speak(response);
+  });
+  
   el('ask').value = '';
 };
 
@@ -357,40 +453,96 @@ el('btnPay').onclick = () => {
 
 el('btnHelp').onclick = () => alert('Demo: Click "Scan QR" or use code SC-1234 to pair.\nAdd items, watch cart, then Pay.');
 
+// Language selector change
+el('languageSelector').onchange = (e) => {
+  state.language = e.target.value;
+  toast(`Language changed to ${e.target.options[e.target.selectedIndex].text}`);
+};
+
 // --- Voice Assistant ---
 el('btnSpeak').onclick = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) { toast('Speech not supported'); return; }
+  
   const recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
+  // Set language for speech recognition
+  recognition.lang = languageCodes[state.language] || "en-US";
   recognition.interimResults = false;
-  recognition.onresult = event => handleVoiceQuery(event.results[0][0].transcript);
-  recognition.start();
-  toast('Listening...');
+  recognition.onresult = event => {
+    const query = event.results[0][0].transcript;
+    pushFeed('aiFeed', '🗣 You: ' + query);
+    handleVoiceQuery(query);
+  };
+  recognition.onerror = event => {
+    console.error('Speech recognition error', event.error);
+    toast('Voice recording error: ' + event.error);
+  };
+  recognition.onend = () => {
+    toast('Voice recording ended');
+  };
+  try {
+    recognition.start();
+    toast('Listening in ' + state.language + '...');
+  } catch (error) {
+    console.error('Speech recognition error', error);
+    toast('Voice recording error: ' + error.message);
+  }
 }
 
 function handleVoiceQuery(text) {
   text = text.toLowerCase();
-  let response = "Sorry, I don't have suggestions for that.";
-  const medicines = {
-    "fever": ["Paracetamol 500mg", "Ibuprofen 200mg"],
-    "cold": ["Cetirizine 10mg", "Loratadine 10mg"],
-    "digestion": ["Pantoprazole 40mg", "Ranitidine 150mg"],
-    "vitamins": ["Vitamin C 500mg", "Multivitamins"],
-    "skin": ["Calamine Lotion", "Hydrocortisone 1%"]
-  };
-  if (text.includes("fever") || text.includes("headache")) response = "For fever/headache: " + medicines.fever.join(", ");
-  else if (text.includes("cold") || text.includes("cough") || text.includes("allergy")) response = "For cold/allergies: " + medicines.cold.join(", ");
-  else if (text.includes("stomach") || text.includes("digestion")) response = "For digestion: " + medicines.digestion.join(", ");
-  else if (text.includes("vitamin") || text.includes("health")) response = "For general health: " + medicines.vitamins.join(", ");
-  else if (text.includes("skin") || text.includes("rash")) response = "For skin issues: " + medicines.skin.join(", ");
-  pushFeed('aiFeed', '🤖 ' + response);
-  speak(response);
+  
+  // Show processing message
+  pushFeed('aiFeed', '🤖 Processing your request...');
+  
+  // Send request to backend API for LLM processing
+  fetch('/api/ask', {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json; charset=utf-8'
+    },
+    body: JSON.stringify({ 
+      query: text,
+      language: state.language
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    // Remove the processing message
+    const feed = el('aiFeed');
+    if (feed.firstChild && feed.firstChild.textContent.includes('Processing your request')) {
+      feed.removeChild(feed.firstChild);
+    }
+    pushFeed('aiFeed', '🤖 ' + data.response);
+    speak(data.response);
+  })
+  .catch(err => {
+    console.error('Error processing voice query', err);
+    // Remove the processing message
+    const feed = el('aiFeed');
+    if (feed.firstChild && feed.firstChild.textContent.includes('Processing your request')) {
+      feed.removeChild(feed.firstChild);
+    }
+    // Fallback responses
+    let response = '';
+    if (text.includes("milk")) response = "Milk is in aisle 1.";
+    else if (text.includes("total")) response = `Your cart total is ${$total.textContent}.`;
+    else if (text.includes("recommend")) response = "I recommend fresh fruits today!";
+    else response = "Sorry, I didn't understand. Ask about items or cart total.";
+    
+    pushFeed('aiFeed', '🤖 ' + response);
+    speak(response);
+  });
 }
 
 function speak(text) {
   if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel(); // cancel previous speech
     const msg = new SpeechSynthesisUtterance(text);
+    
+    // Set language for speech synthesis
+    msg.lang = languageCodes[state.language] || "en-US";
+    msg.rate = 1;
     window.speechSynthesis.speak(msg);
   }
 }
@@ -450,78 +602,6 @@ function onListChange() {
     speak(`Next item: ${next}. Follow path: ${path.join(", ")}`);
   }
 }
-// --- Voice Assistant ---
-el('btnSpeak').onclick = () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { toast('Speech not supported'); return; }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.interimResults = false;
-
-  recognition.onresult = event => {
-    const query = event.results[0][0].transcript;
-    pushFeed('aiFeed', '🗣 You: ' + query);
-    handleVoiceQuery(query);
-  };
-
-  recognition.start();
-  toast('Listening...');
-}
-
-function handleVoiceQuery(text) {
-  text = text.toLowerCase();
-  let response = '';
-
-  // Example hardcoded responses (replace with AI API call)
-  if (text.includes("milk")) response = "Milk is in aisle 1.";
-  else if (text.includes("total")) response = `Your cart total is ${$total.textContent}.`;
-  else if (text.includes("recommend")) response = "I recommend fresh fruits today!";
-  else response = "Sorry, I didn't understand. Ask about items or cart total.";
-
-  pushFeed('aiFeed', '🤖 ' + response);
-  speak(response);
-}
-
-function speak(text) {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel(); // cancel previous speech
-    const msg = new SpeechSynthesisUtterance(text);
-    msg.rate = 1;
-    window.speechSynthesis.speak(msg);
-  }
-}
-async function showPopularBrands(productName) {
-  try {
-    const res = await fetch('/api/brands', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: productName })
-    });
-    const data = await res.json();
-    if (data.success) {
-      pushFeed('navFeed', `Popular ${data.product} brands: ${data.brands.join(', ')}`);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Update onListChange
-function onListChange() {
-  renderList();
-  updateGuidance();
-
-  if (state.list.length) {
-    const next = state.list[0];
-    const path = bfs(product_location["entrance"], product_location[next.toLowerCase()]);
-    speak(`Next item: ${next}. Follow path: ${path.join(", ")}`);
-
-    // Automatically show popular brands for the next item
-    showPopularBrands(next);
-  }
-}
-
 
 // Battery drain simulation
 setInterval(() => {
@@ -535,7 +615,6 @@ setInterval(() => {
 renderPair();
 renderList();
 renderCart();
-
 </script>
 </body>
 </html>
