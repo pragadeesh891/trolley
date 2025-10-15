@@ -136,6 +136,131 @@
       border: 1px solid rgba(255, 212, 102, 0.2);
       font-style: italic;
     }
+    
+    /* Payment Modal */
+    #paymentModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    #paymentModal .card {
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+    }
+    
+    #paymentModal .title {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    
+    #paymentModal .subtitle {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    
+    #paymentModal .btn {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 15px;
+      font-size: 16px;
+      text-align: center;
+    }
+    
+    #paymentModal .btn.primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #0b1020;
+    }
+    
+    /* Camera Scanner */
+    #cameraContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    
+    #qrVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    #scanOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    #scanOverlay div {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 200px;
+      height: 200px;
+      border: 2px solid #6e9bff;
+      box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+    }
+    
+    /* Payment QR Modal */
+    #paymentQRModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    #paymentQRModal .card {
+      width: 90%;
+      max-width: 400px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    #paymentQRModal .title {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    
+    #paymentQRModal .subtitle {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    
+    #paymentQRModal .btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 15px;
+      font-size: 16px;
+      text-align: center;
+    }
+    
+    #paymentQRModal .btn.primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      color: #0b1020;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -179,7 +304,24 @@
         <div class="pair-status"><span id="pairDot" class="dot" aria-hidden="true"></span> <span id="pairText">Not connected</span></div>
 
         <div class="qr">
-          <div class="box" role="img" aria-label="QR Code placeholder"></div>
+          <div class="box" role="img" aria-label="QR Code placeholder" id="qrCodeContainer">
+            <div id="qrCodeDisplay" style="display: none;"></div>
+            <div id="cameraContainer" style="display: none; position: relative;">
+              <video id="qrVideo" style="width: 100%; height: 100%; object-fit: cover;"></video>
+              <div id="scanOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border: 2px solid #6e9bff; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);"></div>
+              </div>
+            </div>
+            <div id="paymentQRDisplay" style="display: none; text-align: center; padding: 10px;">
+              <div style="font-weight: bold; margin-bottom: 10px;">Scan to Pay</div>
+              <div style="background: white; padding: 10px; display: inline-block;">
+                <div style="width: 100px; height: 100px; background: repeating-linear-gradient(45deg, #182040, #182040 8px, #151c38 8px, #151c38 16px); display: grid; place-items: center;">
+                  <span style="color: rgba(255,255,255,0.2); font-weight: bold;">QR</span>
+                </div>
+              </div>
+              <div id="paymentAmount" style="margin-top: 10px; font-weight: bold;"></div>
+            </div>
+          </div>
           <div>
             <div class="row">
               <button class="btn" id="btnScan">📷 Scan QR</button>
@@ -376,14 +518,18 @@ function pushFeed(id, text) {
   wrap.prepend(div);
 }
 
+// Calculate cart total
+function calculateCartTotal() {
+  return state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+}
+
 // --- Pairing ---
 function pairWithCode(code) {
+  // Accept any code for demo purposes, but still use the standard demo code
   const demoCode = 'SC1234';
-  if (code !== demoCode) {
-    toast('Invalid code! Please use SC1234 for demo.');
-    return;
-  }
-
+  // In a real implementation, you would validate the actual scanned code
+  // For now, we'll just proceed with pairing for any scan
+  
   // Generate random trolley ID, e.g., SC + 4-digit number
   const randomId = 'SC' + Math.floor(1000 + Math.random() * 9000);
   state.paired = true;
@@ -391,8 +537,300 @@ function pairWithCode(code) {
   state.battery = 100;
   renderPair();
   toast('Paired to trolley #' + state.trolleyId);
+  
+  // Generate QR code for payment (will be called automatically after scanning)
 }
 
+// Generate QR code for payment
+function generatePaymentQR() {
+  const total = calculateCartTotal();
+  const paymentData = {
+    trolleyId: state.trolleyId,
+    total: total,
+    timestamp: new Date().toISOString()
+  };
+  
+  // In a real implementation, this would generate an actual QR code
+  // For demo purposes, we'll just show a placeholder with the amount
+  const qrContainer = el('paymentQRDisplay');
+  const amountDisplay = el('paymentAmount');
+  amountDisplay.textContent = `Total: ${fmt.format(total)}`;
+  qrContainer.style.display = 'block';
+  
+  // Show payment options automatically when QR is generated
+  setTimeout(() => {
+    showPaymentOptions();
+  }, 2000);
+}
+
+// Simulate QR scanning
+function simulateQRScan() {
+  // In a real implementation, this would use the device's camera
+  // For demo purposes, we'll simulate a successful scan
+  const scannedCode = 'SC1234';
+  pairWithCode(scannedCode);
+}
+
+// Start camera for QR scanning
+function startCameraScan() {
+  const video = el('qrVideo');
+  const cameraContainer = el('cameraContainer');
+  const qrContainer = el('qrCodeContainer');
+  
+  // Show camera container
+  cameraContainer.style.display = 'block';
+  qrContainer.style.background = 'transparent';
+  
+  // Access camera
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      .then(function(stream) {
+        video.srcObject = stream;
+        video.play();
+        
+        // Start scanning for QR codes
+        scanQRCode(video);
+      })
+      .catch(function(err) {
+        console.error("Camera access error:", err);
+        toast("Camera access denied or not available");
+        stopCameraScan();
+      });
+  } else {
+    toast("Camera not supported in this browser");
+    stopCameraScan();
+  }
+}
+
+// Stop camera scanning
+function stopCameraScan() {
+  const video = el('qrVideo');
+  const cameraContainer = el('cameraContainer');
+  const qrContainer = el('qrCodeContainer');
+  
+  // Stop video stream
+  if (video.srcObject) {
+    const tracks = video.srcObject.getTracks();
+    tracks.forEach(track => track.stop());
+  }
+  
+  // Hide camera container
+  cameraContainer.style.display = 'none';
+  qrContainer.style.background = 'repeating-linear-gradient(45deg, #182040, #182040 8px, #151c38 8px, #151c38 16px)';
+}
+
+// Simulate QR code scanning (in a real app, you would use a library like jsQR)
+function scanQRCode(video) {
+  // This is a simplified simulation
+  // In a real implementation, you would use a library like jsQR to detect QR codes
+  
+  const scanInterval = setInterval(() => {
+    // Simulate QR code detection - now works with any QR code
+    // In a real app, this would process video frames to detect QR codes
+    if (Math.random() > 0.95) { // 5% chance each interval to "find" a QR code
+      // Instead of a fixed code, we'll simulate scanning any QR code
+      const scannedCode = 'PRODUCT_QR_' + Math.floor(Math.random() * 10000);
+      
+      // Simulate delay for processing
+      toast('Processing product QR code...');
+      
+      setTimeout(() => {
+        // After scanning any QR code, pair with trolley
+        pairWithCode('SC1234'); // Use the demo code for pairing
+        
+        // After pairing, generate payment with correct product price
+        setTimeout(() => {
+          // Clear existing cart
+          state.cart = [];
+          
+          // Add scanned product to cart with correct price
+          const products = [
+            {name: "Apple iPhone 15", price: 799.99},
+            {name: "Samsung Galaxy S24", price: 699.99},
+            {name: "Sony WH-1000XM5 Headphones", price: 349.99},
+            {name: "Apple MacBook Air M2", price: 1099.99},
+            {name: "Nintendo Switch OLED", price: 349.99},
+            {name: "Sony PlayStation 5", price: 499.99},
+            {name: "Microsoft Surface Pro 9", price: 899.99},
+            {name: "Apple iPad Pro", price: 799.99},
+            {name: "Dyson V15 Detect Vacuum", price: 599.99},
+            {name: "Instant Pot Duo 7-in-1", price: 89.99},
+            {name: "Organic Bananas (1 lb)", price: 0.69},
+            {name: "Whole Wheat Bread", price: 2.49},
+            {name: "Farm Fresh Eggs (12 count)", price: 3.99},
+            {name: "Almond Milk (1 gallon)", price: 3.79},
+            {name: "Greek Yogurt (32 oz)", price: 5.99},
+            {name: "Organic Spinach (16 oz)", price: 3.49},
+            {name: "Grass-Fed Ground Beef (1 lb)", price: 8.99},
+            {name: "Atlantic Salmon Fillet (1 lb)", price: 12.99},
+            {name: "Organic Brown Rice (2 lbs)", price: 3.99},
+            {name: "Extra Virgin Olive Oil (16 oz)", price: 9.99},
+            {name: "Organic Coffee Beans (12 oz)", price: 14.99},
+            {name: "Dark Chocolate (85%, 3.5 oz)", price: 2.99},
+            {name: "Organic Quinoa (12 oz)", price: 4.99},
+            {name: "Himalayan Pink Salt (26 oz)", price: 5.99},
+            {name: "Coconut Water (11.2 oz, 12 pack)", price: 14.99},
+            {name: "Organic Green Tea (20 count)", price: 4.49},
+            {name: "Protein Powder (Vanilla, 2 lbs)", price: 29.99},
+            {name: "Natural Peanut Butter (16 oz)", price: 4.99},
+            {name: "Organic Tomato Sauce (24 oz)", price: 2.99},
+            {name: "Gluten-Free Pasta (12 oz)", price: 2.49}
+          ];
+          
+          // Select a random product
+          const randomProduct = products[Math.floor(Math.random() * products.length)];
+          const randomQty = Math.floor(Math.random() * 3) + 1;
+          
+          // Add to cart
+          state.cart.push({
+            name: randomProduct.name,
+            price: randomProduct.price,
+            qty: randomQty
+          });
+          
+          renderCart();
+          generatePaymentQR();
+        }, 2000);
+      }, 2500);
+      
+      stopCameraScan();
+      clearInterval(scanInterval);
+    }
+  }, 500);
+  
+  // Stop scanning if camera is stopped
+  video.addEventListener('pause', () => {
+    clearInterval(scanInterval);
+  });
+}
+
+// Process payment
+function processPayment(paymentMethod, email = null) {
+  const total = calculateCartTotal();
+  
+  if (total <= 0) {
+    toast('Cart is empty!');
+    return;
+  }
+  
+  // Show payment processing message
+  toast(`Processing ${paymentMethod} payment...`);
+  
+  // Simulate payment processing with different behaviors for different payment methods
+  setTimeout(() => {
+    // Send payment request to backend
+    fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        cart: state.cart,
+        paymentMethod: paymentMethod,
+        email: email
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        // Different success messages based on payment method
+        let successMessage = '';
+        if (paymentMethod === 'UPI') {
+          successMessage = 'UPI payment successful! ✔ Transaction ID: UPI' + Math.floor(100000 + Math.random() * 900000);
+        } else if (paymentMethod === 'Card') {
+          successMessage = 'Card payment successful! ✔ Transaction ID: CARD' + Math.floor(100000 + Math.random() * 900000);
+        } else {
+          successMessage = 'Payment successful! ✔';
+        }
+        
+        toast(successMessage);
+        state.cart = [];
+        renderCart();
+        
+        // Show appropriate message based on email status
+        let receiptMessage = data.email_status || `Payment successful. Total: ${fmt.format(data.total)}`;
+        pushFeed('aiFeed', receiptMessage);
+        
+        // Hide QR code after payment
+        const qrContainer = el('paymentQRDisplay');
+        qrContainer.style.display = 'none';
+      } else {
+        toast('Payment failed: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(err => {
+      console.error('Payment error:', err);
+      toast('Payment failed: Network error');
+    });
+  }, 1500);
+}
+
+// Show payment options
+function showPaymentOptions() {
+  const total = calculateCartTotal();
+  if (total <= 0) {
+    toast('Cart is empty!');
+    return;
+  }
+  
+  // Create payment modal
+  const modal = document.createElement('div');
+  modal.id = 'paymentModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  `;
+  
+  modal.innerHTML = `
+    <div class="card" style="width: 90%; max-width: 400px; padding: 20px;">
+      <h2 class="title">Payment Options</h2>
+      <p class="subtitle">Total: ${fmt.format(total)}</p>
+      
+      <div style="margin: 15px 0;">
+        <label for="emailInput" style="display: block; margin-bottom: 5px; font-weight: 600;">Email for Receipt:</label>
+        <input type="email" id="emailInput" placeholder="your@email.com" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #0f1426; color: var(--text);">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 15px; margin: 20px 0;">
+        <button class="btn" id="btnPayUPI" style="padding: 15px; font-size: 16px;">
+          💸 UPI Payment
+        </button>
+        <button class="btn" id="btnPayCard" style="padding: 15px; font-size: 16px;">
+          💳 Credit/Debit Card
+        </button>
+      </div>
+      
+      <button class="btn" id="btnCancelPayment" style="width: 100%; padding: 12px;">
+        Cancel
+      </button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Add event listeners
+  el('btnPayUPI').onclick = () => {
+    const email = el('emailInput').value.trim();
+    document.body.removeChild(modal);
+    processPayment('UPI', email);
+  };
+  
+  el('btnPayCard').onclick = () => {
+    const email = el('emailInput').value.trim();
+    document.body.removeChild(modal);
+    processPayment('Card', email);
+  };
+  
+  el('btnCancelPayment').onclick = () => {
+    document.body.removeChild(modal);
+  };
+}
 
 // --- Event Listeners ---
 el('btnDisconnect').onclick = () => {
@@ -402,9 +840,14 @@ el('btnDisconnect').onclick = () => {
   renderPair();
   toast('Disconnected from trolley');
   el('btnDisconnect').disabled = true;
+  
+  // Hide QR code when disconnected
+  const qrContainer = el('paymentQRDisplay');
+  qrContainer.style.display = 'none';
+  stopCameraScan();
 }
 
-el('btnScan').onclick = () => pairWithCode('SC-1234');
+el('btnScan').onclick = () => startCameraScan();
 el('btnPair').onclick = () => pairWithCode(el('pairCode').value.trim());
 
 el('btnAdd').onclick = () => {
@@ -436,22 +879,75 @@ el('btnAsk').onclick = () => {
     speak(data.response);
   })
   .catch(err => {
-    const response = '🤖 Suggestion: Try Store Brand to save 10% on ' + v;
-    pushFeed('aiFeed', response);
-    speak(response);
+    // Generate random product responses
+    const responses = [
+      "That's an interesting question. I'd recommend checking aisle 3 for that item.",
+      "I can help you find that product. It's probably near the back of the store.",
+      "That item is on promotion this week. You should definitely check it out!",
+      "I'm not sure about the exact location, but I can guide you to the right section.",
+      "We have multiple options for that product. Would you like me to show you?",
+      "That's a popular item! Many customers have been asking about it lately.",
+      "I can check our inventory for you. It might be in the seasonal section.",
+      "That product comes in different varieties. Which one would you prefer?",
+      "I found similar items in aisle 5. Would you like me to direct you there?",
+      "We just got a new shipment of those items. They're in the front of the store.",
+      "That product is part of our premium collection. It's very high quality.",
+      "I can help you compare prices for that item across different brands.",
+      "Many customers love that product. It has excellent reviews.",
+      "That item is flying off the shelves! We might need to reorder soon.",
+      "I can check if we have that in stock. Would you like me to do that?",
+      "That product is available in multiple sizes. Which would work best for you?",
+      "We have both organic and conventional options for that item.",
+      "That's a seasonal product. We only stock it at certain times of year.",
+      "I can help you find alternatives if that specific item is out of stock.",
+      "That item is part of our loyalty program rewards. Are you a member?",
+      "We have a special display for that product near the entrance.",
+      "That's a new item we just added. I can show you where it is.",
+      "I can check our online inventory if we don't have it in-store.",
+      "That product is eligible for our price match guarantee.",
+      "We have a sample of that item available for you to try first.",
+      "That's one of our best-selling products. Very popular with customers.",
+      "I can help you find the best deal on that item right now.",
+      "That product comes with a satisfaction guarantee.",
+      "We have both regular and premium versions of that item.",
+      "That's a limited edition product. We only have a few left.",
+      "I can help you locate that item and also find complementary products."
+    ];
+    
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    pushFeed('aiFeed', '🤖 ' + randomResponse);
+    speak(randomResponse);
   });
   
   el('ask').value = '';
 };
 
 el('btnPay').onclick = () => {
-  toast('Payment successful ✔');
-  state.cart = [];
-  renderCart();
-  pushFeed('aiFeed', 'Receipt sent to your email.');
+  if (!state.paired) {
+    toast('Please pair with trolley first!');
+    return;
+  }
+  
+  if (state.cart.length === 0) {
+    toast('Cart is empty!');
+    return;
+  }
+  
+  generatePaymentQR();
 };
 
-el('btnHelp').onclick = () => alert('Demo: Click "Scan QR" or use code SC-1234 to pair.\nAdd items, watch cart, then Pay.');
+el('btnHelp').onclick = () => {
+  alert('Demo Instructions:\n\n' +
+        '1. Pair with trolley: Click "Scan QR" to use camera or enter code SC1234\n' +
+        '2. Add items to your shopping list\n' +
+        '3. View cart items and total\n' +
+        '4. Click "Pay Now" to initiate payment\n' +
+        '5. Scan the QR code that appears\n' +
+        '6. Choose UPI or Card payment method\n\n' +
+        'Supported payment methods:\n' +
+        '• UPI Payment\n' +
+        '• Credit/Debit Card');
+};
 
 // Language selector change
 el('languageSelector').onchange = (e) => {
@@ -523,15 +1019,44 @@ function handleVoiceQuery(text) {
     if (feed.firstChild && feed.firstChild.textContent.includes('Processing your request')) {
       feed.removeChild(feed.firstChild);
     }
-    // Fallback responses
-    let response = '';
-    if (text.includes("milk")) response = "Milk is in aisle 1.";
-    else if (text.includes("total")) response = `Your cart total is ${$total.textContent}.`;
-    else if (text.includes("recommend")) response = "I recommend fresh fruits today!";
-    else response = "Sorry, I didn't understand. Ask about items or cart total.";
+    // Generate random product responses
+    const responses = [
+      "That's an interesting question. I'd recommend checking aisle 3 for that item.",
+      "I can help you find that product. It's probably near the back of the store.",
+      "That item is on promotion this week. You should definitely check it out!",
+      "I'm not sure about the exact location, but I can guide you to the right section.",
+      "We have multiple options for that product. Would you like me to show you?",
+      "That's a popular item! Many customers have been asking about it lately.",
+      "I can check our inventory for you. It might be in the seasonal section.",
+      "That product comes in different varieties. Which one would you prefer?",
+      "I found similar items in aisle 5. Would you like me to direct you there?",
+      "We just got a new shipment of those items. They're in the front of the store.",
+      "That product is part of our premium collection. It's very high quality.",
+      "I can help you compare prices for that item across different brands.",
+      "Many customers love that product. It has excellent reviews.",
+      "That item is flying off the shelves! We might need to reorder soon.",
+      "I can check if we have that in stock. Would you like me to do that?",
+      "That product is available in multiple sizes. Which would work best for you?",
+      "We have both organic and conventional options for that item.",
+      "That's a seasonal product. We only stock it at certain times of year.",
+      "I can help you find alternatives if that specific item is out of stock.",
+      "That item is part of our loyalty program rewards. Are you a member?",
+      "We have a special display for that product near the entrance.",
+      "That's a new item we just added. I can show you where it is.",
+      "I can check our online inventory if we don't have it in-store.",
+      "That product is eligible for our price match guarantee.",
+      "We have a sample of that item available for you to try first.",
+      "That's one of our best-selling products. Very popular with customers.",
+      "I can help you find the best deal on that item right now.",
+      "That product comes with a satisfaction guarantee.",
+      "We have both regular and premium versions of that item.",
+      "That's a limited edition product. We only have a few left.",
+      "I can help you locate that item and also find complementary products."
+    ];
     
-    pushFeed('aiFeed', '🤖 ' + response);
-    speak(response);
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    pushFeed('aiFeed', '🤖 ' + randomResponse);
+    speak(randomResponse);
   });
 }
 

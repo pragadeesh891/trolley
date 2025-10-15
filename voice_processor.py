@@ -87,7 +87,27 @@ class VoiceProcessor:
             "chips": {"price": "$2.99", "brand": "Crunchy Snacks", "location": "Aisle 5, Shelf C"},
             "ice cream": {"price": "$4.49", "brand": "Creamy Delight", "location": "Aisle 6, Shelf A"},
             "shampoo": {"price": "$5.99", "brand": "Silky Hair", "location": "Aisle 7, Shelf B"},
-            "toothpaste": {"price": "$2.49", "brand": "Bright Smile", "location": "Aisle 7, Shelf A"}
+            "toothpaste": {"price": "$2.49", "brand": "Bright Smile", "location": "Aisle 7, Shelf A"},
+            "organic bananas": {"price": "$0.69/lb", "location": "Aisle 1, Shelf C"},
+            "whole wheat bread": {"price": "$2.49", "brand": "Golden Grain", "location": "Aisle 1, Shelf A"},
+            "farm fresh eggs": {"price": "$3.99", "count": "12", "location": "Aisle 2, Shelf A"},
+            "almond milk": {"price": "$3.79", "size": "1 gallon", "location": "Aisle 2, Shelf B"},
+            "greek yogurt": {"price": "$5.99", "size": "32 oz", "location": "Aisle 2, Shelf C"},
+            "organic spinach": {"price": "$3.49", "size": "16 oz", "location": "Aisle 1, Shelf B"},
+            "grass-fed ground beef": {"price": "$8.99/lb", "location": "Aisle 3, Shelf A"},
+            "atlantic salmon fillet": {"price": "$12.99/lb", "location": "Aisle 3, Shelf C"},
+            "organic brown rice": {"price": "$3.99", "size": "2 lbs", "location": "Aisle 4, Shelf B"},
+            "extra virgin olive oil": {"price": "$9.99", "size": "16 oz", "location": "Aisle 4, Shelf C"},
+            "organic coffee beans": {"price": "$14.99", "size": "12 oz", "location": "Aisle 1, Shelf D"},
+            "dark chocolate": {"price": "$2.99", "percentage": "85%", "size": "3.5 oz", "location": "Aisle 5, Shelf B"},
+            "organic quinoa": {"price": "$4.99", "size": "12 oz", "location": "Aisle 4, Shelf A"},
+            "himalayan pink salt": {"price": "$5.99", "size": "26 oz", "location": "Aisle 7, Shelf C"},
+            "coconut water": {"price": "$14.99", "size": "11.2 oz", "pack": "12 pack", "location": "Aisle 5, Shelf A"},
+            "organic green tea": {"price": "$4.49", "count": "20", "location": "Aisle 1, Shelf E"},
+            "protein powder": {"price": "$29.99", "flavor": "Vanilla", "size": "2 lbs", "location": "Aisle 6, Shelf B"},
+            "natural peanut butter": {"price": "$4.99", "size": "16 oz", "location": "Aisle 4, Shelf D"},
+            "organic tomato sauce": {"price": "$2.99", "size": "24 oz", "location": "Aisle 4, Shelf E"},
+            "gluten-free pasta": {"price": "$2.49", "size": "12 oz", "location": "Aisle 4, Shelf F"}
         }
         
         # Initialize Whisper
@@ -325,32 +345,43 @@ class VoiceProcessor:
         """
         query_lower = query.lower()
         
-        # Check for product queries
-        for product, info in self.products.items():
-            if product in query_lower:
-                response = f"The {product} is located in {info['location']}. "
-                if 'price' in info:
-                    response += f"It costs {info['price']}. "
-                if 'brand' in info:
-                    response += f"Brand: {info['brand']}. "
-                return response.strip()
+        # Generate completely random responses without context matching
+        responses = [
+            "That's an interesting question. I'd recommend checking aisle 3 for that item.",
+            "I can help you find that product. It's probably near the back of the store.",
+            "That item is on promotion this week. You should definitely check it out!",
+            "I'm not sure about the exact location, but I can guide you to the right section.",
+            "We have multiple options for that product. Would you like me to show you?",
+            "That's a popular item! Many customers have been asking about it lately.",
+            "I can check our inventory for you. It might be in the seasonal section.",
+            "That product comes in different varieties. Which one would you prefer?",
+            "I found similar items in aisle 5. Would you like me to direct you there?",
+            "We just got a new shipment of those items. They're in the front of the store.",
+            "That product is part of our premium collection. It's very high quality.",
+            "I can help you compare prices for that item across different brands.",
+            "Many customers love that product. It has excellent reviews.",
+            "That item is flying off the shelves! We might need to reorder soon.",
+            "I can check if we have that in stock. Would you like me to do that?",
+            "That product is available in multiple sizes. Which would work best for you?",
+            "We have both organic and conventional options for that item.",
+            "That's a seasonal product. We only stock it at certain times of year.",
+            "I can help you find alternatives if that specific item is out of stock.",
+            "That item is part of our loyalty program rewards. Are you a member?",
+            "We have a special display for that product near the entrance.",
+            "That's a new item we just added. I can show you where it is.",
+            "I can check our online inventory if we don't have it in-store.",
+            "That product is eligible for our price match guarantee.",
+            "We have a sample of that item available for you to try first.",
+            "That's one of our best-selling products. Very popular with customers.",
+            "I can help you find the best deal on that item right now.",
+            "That product comes with a satisfaction guarantee.",
+            "We have both regular and premium versions of that item.",
+            "That's a limited edition product. We only have a few left.",
+            "I can help you locate that item and also find complementary products."
+        ]
         
-        # Check for location queries
-        for section, aisle in self.store_layout.items():
-            if section in query_lower:
-                return f"The {section} section is located in {aisle}."
-        
-        # Check for specific queries
-        if "total" in query_lower or "price" in query_lower:
-            return "I can help you check prices for specific items. Please ask about a particular product."
-        elif "recommend" in query_lower:
-            return "I recommend checking out our fresh produce section in Aisle 1 for daily essentials."
-        elif "organic" in query_lower:
-            return "We have organic apples available in Aisle 1, Shelf C."
-        elif "promotion" in query_lower or "deal" in query_lower:
-            return "Check our weekly flyer for current promotions, or ask me about specific products."
-        else:
-            return "I'm your smart shopping assistant. I can help you find products, check prices, and navigate the store. What would you like to know?"
+        import random
+        return random.choice(responses)
     
     def text_to_speech(self, text, language="en"):
         """

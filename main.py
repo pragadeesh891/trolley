@@ -1,6 +1,19 @@
 import sys
 import io
 
+# Import email configuration
+try:
+    from email_config import EMAIL_CONFIG
+    EMAIL_ENABLED = True
+except ImportError:
+    EMAIL_CONFIG = {
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587,
+        "sender_email": "your_email@gmail.com",
+        "sender_password": "your_app_password"
+    }
+    EMAIL_ENABLED = False
+
 # Ensure proper encoding
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -12,6 +25,10 @@ from pydantic import BaseModel
 from typing import List, Optional
 import uvicorn
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import ssl
 
 # Import additional libraries for multilingual support
 try:
@@ -87,21 +104,22 @@ class Item(BaseModel):
 
 class CheckoutRequest(BaseModel):
     cart: List[Item]
-
-class VoiceRequest(BaseModel):
-    text: str
-    language: str = "en"
+    paymentMethod: Optional[str] = "Card"
+    email: Optional[str] = None  # Add email field
 
 class TranslationRequest(BaseModel):
     text: str
     source_lang: str = "auto"
     target_lang: str = "en"
 
+class VoiceRequest(BaseModel):
+    text: str
+    language: str = "en"
+
 class LlamaConfig(BaseModel):
     model_path: Optional[str] = None
     ollama_model: Optional[str] = None
 
-# ===== API Endpoints =====
 @app.post("/api/pair")
 def pair_cart(req: PairRequest):
     if req.code.upper() == "SC1234":
@@ -241,7 +259,145 @@ async def ai_assist_multilingual(req: AskRequest):
 @app.post("/api/checkout")
 def checkout(req: CheckoutRequest):
     total = sum(item.price * item.qty for item in req.cart)
-    return {"success": True, "message": "Payment successful", "total": total}
+    
+    # Process payment based on method with more realistic processing
+    payment_success = True
+    message = "Payment successful"
+    
+    if req.paymentMethod == "QR":
+        message = "QR payment processed successfully"
+    elif req.paymentMethod == "Card":
+        message = "Credit/Debit card payment processed successfully"
+    elif req.paymentMethod == "UPI":
+        message = "UPI payment processed successfully"
+    else:
+        message = "Payment processed successfully"
+    
+    # Add some realistic processing time simulation
+    import time
+    import random
+    time.sleep(random.uniform(0.5, 1.5))  # Simulate processing time
+    
+    # Send receipt email if email is provided
+    email_status = "Payment successful"
+    if req.email:
+        try:
+            email_sent = send_receipt_email(req.email, req.cart, total, req.paymentMethod)
+            if email_sent:
+                email_status = "Receipt sent to your email"
+            else:
+                email_status = "Payment successful (email delivery failed)"
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+            email_status = "Payment successful (email delivery failed)"
+    
+    return {
+        "success": payment_success,
+        "message": message,
+        "total": total,
+        "paymentMethod": req.paymentMethod,
+        "email_status": email_status
+    }
+
+def send_receipt_email(email, cart, total, payment_method):
+    """
+    Send receipt email to customer
+    """
+    import random
+    import time
+    
+    # If email is not enabled, simulate success
+    if not EMAIL_ENABLED:
+        print(f"=== EMAIL SIMULATION ===")
+        print(f"To: {email}")
+        print(f"Subject: SmartCart Purchase Receipt")
+        print(f"Content: Receipt for order totaling Rs. {total:.2f}")
+        print(f"=====================")
+        return True
+    
+    # Use actual email configuration
+    smtp_server = EMAIL_CONFIG["smtp_server"]
+    smtp_port = EMAIL_CONFIG["smtp_port"]
+    sender_email = EMAIL_CONFIG["sender_email"]
+    sender_password = EMAIL_CONFIG["sender_password"]
+    
+    # If credentials are not set, simulate success
+    if sender_email == "your_email@gmail.com" or sender_password == "your_app_password":
+        print(f"=== EMAIL SIMULATION (Credentials not set) ===")
+        print(f"To: {email}")
+        print(f"Subject: SmartCart Purchase Receipt")
+        print(f"Content: Receipt for order totaling Rs. {total:.2f}")
+        print(f"=====================")
+        return True
+    
+    try:
+        # Create message
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "SmartCart Purchase Receipt"
+        message["From"] = sender_email
+        message["To"] = email
+        
+        # Create HTML content
+        html = '''
+        <html>
+          <body>
+            <h2>SmartCart Purchase Receipt</h2>
+            <p>Thank you for your purchase!</p>
+            <h3>Order Details:</h3>
+            <table border="1" style="border-collapse: collapse;">
+              <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+        '''
+        
+        for item in cart:
+            item_total = item.price * item.qty
+            html += '''
+              <tr>
+                <td>{}</td>
+                <td>{}</td>
+                <td>Rs. {:.2f}</td>
+                <td>Rs. {:.2f}</td>
+              </tr>
+            '''.format(item.name, item.qty, item.price, item_total)
+        
+        html += '''
+            </table>
+            <h3>Total: Rs. {:.2f}</h3>
+            <p>Payment Method: {}</p>
+            <p>Transaction ID: TXN{}</p>
+            <p>Date: {}</p>
+            <p>Thank you for shopping with SmartCart!</p>
+          </body>
+        </html>
+        '''.format(total, payment_method, random.randint(100000, 999999), time.strftime("%Y-%m-%d %H:%M:%S"))
+        
+        # Add HTML part to message
+        html_part = MIMEText(html, "html")
+        message.attach(html_part)
+        
+        # Create secure connection and send email
+        context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls(context=context)
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, email, message.as_string())
+        
+        print(f"=== EMAIL SENT SUCCESSFULLY ===")
+        print(f"To: {email}")
+        print(f"Subject: SmartCart Purchase Receipt")
+        print(f"=====================")
+        return True
+        
+    except Exception as e:
+        print(f"=== EMAIL SENDING FAILED ===")
+        print(f"Error: {e}")
+        print(f"To: {email}")
+        print(f"=====================")
+        return False
 
 # Language detection endpoint
 @app.post("/api/detect-language")
@@ -576,6 +732,26 @@ Product information:
 - Ice Cream: $4.49, Brand: Creamy Delight, Location: Aisle 6, Shelf A
 - Shampoo: $5.99, Brand: Silky Hair, Location: Aisle 7, Shelf B
 - Toothpaste: $2.49, Brand: Bright Smile, Location: Aisle 7, Shelf A
+- Organic Bananas: $0.69/lb, Location: Aisle 1, Shelf C
+- Whole Wheat Bread: $2.49, Brand: Golden Grain, Location: Aisle 1, Shelf A
+- Farm Fresh Eggs: $3.99 (12 count), Location: Aisle 2, Shelf A
+- Almond Milk: $3.79 (1 gallon), Location: Aisle 2, Shelf B
+- Greek Yogurt: $5.99 (32 oz), Location: Aisle 2, Shelf C
+- Organic Spinach: $3.49 (16 oz), Location: Aisle 1, Shelf B
+- Grass-Fed Ground Beef: $8.99/lb, Location: Aisle 3, Shelf A
+- Atlantic Salmon Fillet: $12.99/lb, Location: Aisle 3, Shelf C
+- Organic Brown Rice: $3.99 (2 lbs), Location: Aisle 4, Shelf B
+- Extra Virgin Olive Oil: $9.99 (16 oz), Location: Aisle 4, Shelf C
+- Organic Coffee Beans: $14.99 (12 oz), Location: Aisle 1, Shelf D
+- Dark Chocolate: $2.99 (85%, 3.5 oz), Location: Aisle 5, Shelf B
+- Organic Quinoa: $4.99 (12 oz), Location: Aisle 4, Shelf A
+- Himalayan Pink Salt: $5.99 (26 oz), Location: Aisle 7, Shelf C
+- Coconut Water: $14.99 (11.2 oz, 12 pack), Location: Aisle 5, Shelf A
+- Organic Green Tea: $4.49 (20 count), Location: Aisle 1, Shelf E
+- Protein Powder: $29.99 (Vanilla, 2 lbs), Location: Aisle 6, Shelf B
+- Natural Peanut Butter: $4.99 (16 oz), Location: Aisle 4, Shelf D
+- Organic Tomato Sauce: $2.99 (24 oz), Location: Aisle 4, Shelf E
+- Gluten-Free Pasta: $2.49 (12 oz), Location: Aisle 4, Shelf F
 
 User: {query}
 Assistant:"""
@@ -596,7 +772,43 @@ Assistant:"""
             print(f"Error getting response from voice processor: {e}")
             return f"🤖 Suggestion: Try Store Brand to save 10% on {query}"
     else:
-        return f"🤖 Suggestion: Try Store Brand to save 10% on {query}"
+        # Expanded fallback responses for more product variety
+        responses = [
+            f"🤖 That's an interesting question. I'd recommend checking aisle 3 for that item.",
+            f"🤖 I can help you find that product. It's probably near the back of the store.",
+            f"🤖 That item is on promotion this week. You should definitely check it out!",
+            f"🤖 I'm not sure about the exact location, but I can guide you to the right section.",
+            f"🤖 We have multiple options for that product. Would you like me to show you?",
+            f"🤖 That's a popular item! Many customers have been asking about it lately.",
+            f"🤖 I can check our inventory for you. It might be in the seasonal section.",
+            f"🤖 That product comes in different varieties. Which one would you prefer?",
+            f"🤖 I found similar items in aisle 5. Would you like me to direct you there?",
+            f"🤖 We just got a new shipment of those items. They're in the front of the store.",
+            f"🤖 That product is part of our premium collection. It's very high quality.",
+            f"🤖 I can help you compare prices for that item across different brands.",
+            f"🤖 Many customers love that product. It has excellent reviews.",
+            f"🤖 That item is flying off the shelves! We might need to reorder soon.",
+            f"🤖 I can check if we have that in stock. Would you like me to do that?",
+            f"🤖 That product is available in multiple sizes. Which would work best for you?",
+            f"🤖 We have both organic and conventional options for that item.",
+            f"🤖 That's a seasonal product. We only stock it at certain times of year.",
+            f"🤖 I can help you find alternatives if that specific item is out of stock.",
+            f"🤖 That item is part of our loyalty program rewards. Are you a member?",
+            f"🤖 We have a special display for that product near the entrance.",
+            f"🤖 That's a new item we just added. I can show you where it is.",
+            f"🤖 I can check our online inventory if we don't have it in-store.",
+            f"🤖 That product is eligible for our price match guarantee.",
+            f"🤖 We have a sample of that item available for you to try first.",
+            f"🤖 That's one of our best-selling products. Very popular with customers.",
+            f"🤖 I can help you find the best deal on that item right now.",
+            f"🤖 That product comes with a satisfaction guarantee.",
+            f"🤖 We have both regular and premium versions of that item.",
+            f"🤖 That's a limited edition product. We only have a few left.",
+            f"🤖 I can help you locate that item and also find complementary products."
+        ]
+        
+        import random
+        return random.choice(responses)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
